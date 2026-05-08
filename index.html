@@ -1473,4 +1473,1188 @@ function renderSteps() {
       <div class="photo-wrap" onclick="openLightboxFor('step',${si},${pi})">
         <img src="${escAttr(img.url)}" alt="" loading="lazy">
         <span class="photo-num">${pi + 1}</span>
-        <div class="photo-tools" onclick="event.stopPropagation()"
+        <div class="photo-tools" onclick="event.stopPropagation()">
+          <button onclick="event.stopPropagation();movePhoto(${si},${pi},-1)" ${pi===0?'disabled':''} aria-label="left">‹</button>
+          <button onclick="event.stopPropagation();movePhoto(${si},${pi},1)" ${pi===s.images.length-1?'disabled':''} aria-label="right">›</button>
+          <button class="photo-del" onclick="event.stopPropagation();delPhoto(${si},${pi})" aria-label="delete">×</button>
+        </div>
+      </div>
+    `).join('');
+
+    const uploadingCount = uploadingMap['step-' + si] || 0;
+    const uploadingHtml = uploadingCount > 0
+      ? Array.from({length: uploadingCount}).map(() => `<div class="photo-uploading">⏳</div>`).join('')
+      : '';
+
+    const weightsHtml = s.weights.map((w, wi) => `
+      <div class="w-row">
+        <div class="w-grid">
+          <div class="full-row">
+            <label>${lang==='ar'?'المكوّن (عربي)':'Ingredient (Arabic)'}</label>
+            <input type="text" value="${escAttr(w.nameAr)}" oninput="setWeightField(${si},${wi},'nameAr',this.value)">
+          </div>
+          <div class="full-row">
+            <label>${lang==='ar'?'المكوّن (إنجليزي)':'Ingredient (English)'}</label>
+            <input type="text" value="${escAttr(w.name)}" oninput="setWeightField(${si},${wi},'name',this.value)">
+          </div>
+          <div>
+            <label>${lang==='ar'?'الكمية':'Amount'}</label>
+            <input type="text" inputmode="decimal" value="${escAttr(w.amount)}" oninput="setWeightField(${si},${wi},'amount',this.value)">
+          </div>
+          <div>
+            <label>${lang==='ar'?'الوحدة':'Unit'}</label>
+            <select onchange="setWeightField(${si},${wi},'unit',this.value)">
+              ${UNITS.map(u => `<option value="${u.code}" ${u.code===w.unit?'selected':''}>${u.code} · ${u.ar}</option>`).join('')}
+            </select>
+          </div>
+          ${w.unit === 'pcs' ? `
+            <div class="full-row">
+              <label>${lang==='ar'?'وزن الحبة (جم)':'Weight per piece (g)'}</label>
+              <input type="number" min="0" step="any" value="${escAttr(w.pieceWeight)}" oninput="setWeightField(${si},${wi},'pieceWeight',this.value)">
+            </div>
+          ` : ''}
+          <div>
+            <label>${lang==='ar'?'حالة المكوّن (عربي)':'State (Arabic)'}</label>
+            <input type="text" placeholder="${lang==='ar'?'سائل / مطحون / …':'سائل / مطحون / …'}" value="${escAttr(w.stateAr)}" oninput="setWeightField(${si},${wi},'stateAr',this.value)">
+          </div>
+          <div>
+            <label>${lang==='ar'?'الحالة (إنجليزي)':'State (English)'}</label>
+            <input type="text" placeholder="liquid / ground / …" value="${escAttr(w.state)}" oninput="setWeightField(${si},${wi},'state',this.value)">
+          </div>
+          <div class="full-row">
+            <label>${lang==='ar'?'ملاحظات (عربي)':'Notes (Arabic)'}</label>
+            <input type="text" value="${escAttr(w.noteAr)}" oninput="setWeightField(${si},${wi},'noteAr',this.value)">
+          </div>
+          <div class="full-row">
+            <label>${lang==='ar'?'ملاحظات (إنجليزي)':'Notes (English)'}</label>
+            <input type="text" value="${escAttr(w.note)}" oninput="setWeightField(${si},${wi},'note',this.value)">
+          </div>
+          <div class="full-row" style="text-align:end">
+            <button class="btn-del" onclick="delWeightRow(${si},${wi})" style="display:inline-flex">×</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    const titleSummary = s.headingAr || s.headingEn || (lang==='ar' ? `خطوة ${si+1}` : `Step ${si+1}`);
+    const photoBadge = s.images.length ? `<span class="photo-count">📷 ${s.images.length}</span>` : '';
+
+    return `
+      <div class="step ${s.collapsed?'collapsed':''}" id="step-${si}" data-step-idx="${si}">
+        <div class="step-head">
+          <div class="grab" data-drag-handle="${si}" title="${lang==='ar'?'اسحب لإعادة الترتيب':'Drag to reorder'}">⋮⋮</div>
+          <span class="step-n">${String(si+1).padStart(2,'0')}</span>
+          <div class="step-title" onclick="toggleStepCollapse(${si})">
+            <span class="step-collapse">▼</span>
+            <span class="step-title-text">${escAttr(titleSummary)}</span>
+            ${photoBadge}
+          </div>
+          <button class="btn-icon" onclick="moveStep(${si},-1)" title="up" ${si===0?'disabled':''}>↑</button>
+          <button class="btn-icon" onclick="moveStep(${si},1)" title="down" ${si===state.steps.length-1?'disabled':''}>↓</button>
+          <button class="btn-del" onclick="delStep(${si})" aria-label="delete">×</button>
+        </div>
+        <div class="step-body">
+          <div class="field">
+            <label>${lang==='ar'?'عنوان الخطوة (عربي)':'Step heading (Arabic)'}</label>
+            <input type="text" placeholder="${lang==='ar'?'مثال: عملية التقطيع':'مثال: عملية التقطيع'}" value="${escAttr(s.headingAr)}" oninput="setStepField(${si},'headingAr',this.value)">
+          </div>
+          <div class="field">
+            <label>${lang==='ar'?'عنوان الخطوة (إنجليزي)':'Step heading (English)'}</label>
+            <input type="text" placeholder="e.g. Cutting Process" value="${escAttr(s.headingEn)}" oninput="setStepField(${si},'headingEn',this.value)">
+          </div>
+
+          <div class="field">
+            <label>${lang==='ar'?'العناصر':'Items'}</label>
+            ${itemsHtml}
+            <button class="btn dashed" onclick="addItem(${si})">
+              <span class="ar-only">+ عنصر</span><span class="en-only">+ item</span>
+            </button>
+          </div>
+
+          <div class="field">
+            <label>${lang==='ar'?'الصور':'Photos'} ${s.images.length?`(${s.images.length})`:''}</label>
+            <div class="photos">${photosHtml}${uploadingHtml}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button type="button" class="btn dashed" onclick="openCamera(${si})" style="display:inline-flex;align-items:center;gap:6px">
+                <span class="ar-only">📸 كاميرا متعددة</span>
+                <span class="en-only">📸 Burst camera</span>
+              </button>
+              <label class="photos-add">
+                <span class="ar-only">📷 من المعرض</span>
+                <span class="en-only">📷 Gallery</span>
+                <input type="file" accept="image/*" multiple onchange="onStepPhotosPick(event, ${si})">
+              </label>
+            </div>
+          </div>
+
+          <div class="w-toggle" onclick="toggleWeights(${si})">
+            <span>
+              <span class="ar-only">⚖ جدول المكونات</span>
+              <span class="en-only">⚖ Ingredient weights</span>
+            </span>
+            <span class="w-count">${s.showWeights ? '▼' : '▶'} ${s.weights.length}</span>
+          </div>
+          <div class="w-table ${s.showWeights ? 'open' : ''}">
+            ${weightsHtml}
+            ${s.showWeights ? `<button class="btn dashed full" onclick="addWeightRow(${si})">
+              <span class="ar-only">+ مكوّن</span><span class="en-only">+ ingredient</span>
+            </button>` : ''}
+          </div>
+
+          <div class="step-actions">
+            <button class="btn ghost" onclick="duplicateStep(${si})">
+              <span class="ar-only">📑 نسخ الخطوة</span><span class="en-only">📑 Duplicate</span>
+            </button>
+            <button class="btn ghost" onclick="toggleStepCollapse(${si})">
+              <span class="ar-only">⊟ طيّ</span><span class="en-only">⊟ Collapse</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  bindStepDrag();
+}
+
+// =========================================================================
+// Drag-to-reorder
+// =========================================================================
+
+let _drag = null;
+
+function bindStepDrag(){
+  document.querySelectorAll('.step .grab').forEach(handle => {
+    handle.addEventListener('pointerdown', onDragStart);
+  });
+}
+
+function onDragStart(e){
+  if (e.button !== undefined && e.button !== 0) return;
+  e.preventDefault();
+  const step = e.currentTarget.closest('.step');
+  if (!step) return;
+  _drag = {
+    fromIdx: parseInt(step.dataset.stepIdx, 10),
+    el: step,
+    startY: e.clientY,
+    pointerId: e.pointerId,
+  };
+  step.classList.add('dragging');
+  e.currentTarget.setPointerCapture(e.pointerId);
+  document.addEventListener('pointermove', onDragMove);
+  document.addEventListener('pointerup', onDragEnd, { once: true });
+  document.addEventListener('pointercancel', onDragEnd, { once: true });
+}
+
+function onDragMove(e){
+  if (!_drag) return;
+  const stepsList = document.getElementById('steps-list');
+  const allSteps = Array.from(stepsList.querySelectorAll('.step'));
+  let target = null;
+  for (const s of allSteps){
+    if (s === _drag.el) continue;
+    const rect = s.getBoundingClientRect();
+    if (e.clientY >= rect.top && e.clientY <= rect.bottom){ target = s; break; }
+  }
+  allSteps.forEach(s => s.classList.toggle('drag-over', s === target));
+}
+
+function onDragEnd(e){
+  if (!_drag) return;
+  document.removeEventListener('pointermove', onDragMove);
+  const stepsList = document.getElementById('steps-list');
+  const allSteps = Array.from(stepsList.querySelectorAll('.step'));
+  let toIdx = _drag.fromIdx;
+  for (let i = 0; i < allSteps.length; i++){
+    if (allSteps[i].classList.contains('drag-over')){
+      toIdx = parseInt(allSteps[i].dataset.stepIdx, 10);
+      break;
+    }
+  }
+  allSteps.forEach(s => s.classList.remove('drag-over','dragging'));
+  if (toIdx !== _drag.fromIdx){
+    const moved = state.steps.splice(_drag.fromIdx, 1)[0];
+    state.steps.splice(toIdx, 0, moved);
+    renderSteps();
+    scheduleSave();
+  }
+  _drag = null;
+}
+
+// =========================================================================
+// Lightbox
+// =========================================================================
+
+let _lb = { list: [], idx: 0 };
+
+function openLightboxFor(kind, si, pi){
+  if (kind === 'utensil'){
+    _lb.list = state.utensils.filter(u => u.img).map(u => u.img);
+    const img = state.utensils[si].img;
+    _lb.idx = Math.max(0, _lb.list.indexOf(img));
+  } else if (kind === 'step'){
+    _lb.list = state.steps[si].images.map(im => im.url);
+    _lb.idx = pi || 0;
+  }
+  if (!_lb.list.length) return;
+  document.getElementById('lightbox').classList.add('open');
+  renderLightbox();
+}
+
+function renderLightbox(){
+  document.getElementById('lightbox-img').src = _lb.list[_lb.idx] || '';
+  document.getElementById('lb-counter').textContent = `${_lb.idx + 1} / ${_lb.list.length}`;
+  document.getElementById('lb-prev').disabled = _lb.idx === 0;
+  document.getElementById('lb-next').disabled = _lb.idx >= _lb.list.length - 1;
+}
+
+function lightboxNav(dir){
+  _lb.idx = Math.max(0, Math.min(_lb.list.length - 1, _lb.idx + dir));
+  renderLightbox();
+}
+
+function closeLightbox(){
+  document.getElementById('lightbox').classList.remove('open');
+}
+
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('lightbox').classList.contains('open')) return;
+  if (e.key === 'Escape') closeLightbox();
+  else if (e.key === 'ArrowLeft') lightboxNav(getLang()==='ar' ? 1 : -1);
+  else if (e.key === 'ArrowRight') lightboxNav(getLang()==='ar' ? -1 : 1);
+});
+
+// =========================================================================
+// Helpers
+// =========================================================================
+
+function escAttr(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+let toastTimer = null;
+function toast(msg, kind) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (kind ? ' ' + kind : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = 'toast'; }, 2200);
+}
+
+// =========================================================================
+// Export
+// =========================================================================
+
+function buildExportPayloadForDraft(d) {
+  // Builds payload from any draft object (no UI validation here)
+  if (!d) return null;
+  const recipeSteps = [];
+
+  if (d.utensils && d.utensils.length) {
+    const utensilStep = {
+      heading: 'Used Utensils',
+      headingAr: 'الأدوات المستخدمة',
+      items: d.utensils.map(u => u.en || u.ar || ''),
+      itemsAr: d.utensils.map(u => u.ar || u.en || ''),
+      images: [],
+      weights: [],
+    };
+    if (d.utensils.some(u => u.img)) {
+      utensilStep.utensilImages = d.utensils.map(u => u.img || '');
+    }
+    recipeSteps.push(utensilStep);
+  }
+
+  for (const s of (d.steps || [])) {
+    const items   = s.items.map(it => it.en || it.ar || '');
+    const itemsAr = s.items.map(it => it.ar || it.en || '');
+    const weights = s.weights.map(w => {
+      const e = { name: w.name || w.nameAr || '', amount: String(w.amount || ''), unit: w.unit || 'g', note: w.note || '' };
+      if (w.unit === 'pcs' && w.pieceWeight) {
+        const pw = parseFloat(w.pieceWeight);
+        if (isFinite(pw) && pw > 0) e.pieceWeight = pw;
+      }
+      if (w.state) e.state = w.state;
+      return e;
+    });
+    const weightsAr = s.weights.map(w => {
+      const e = {
+        name: w.name || w.nameAr || '',
+        amount: String(w.amount || ''),
+        unit: w.unit || 'g',
+        nameAr: w.nameAr || '',
+        note: w.note || '',
+        noteAr: w.noteAr || '',
+      };
+      if (w.unit === 'pcs' && w.pieceWeight) {
+        const pw = parseFloat(w.pieceWeight);
+        if (isFinite(pw) && pw > 0) e.pieceWeight = pw;
+      }
+      if (w.stateAr) e.stateAr = w.stateAr;
+      return e;
+    });
+    recipeSteps.push({
+      heading: s.headingEn || s.headingAr || 'Step',
+      headingAr: s.headingAr || s.headingEn || 'خطوة',
+      items, itemsAr,
+      images: (s.images || []).map(im => typeof im === 'string' ? im : im.url),
+      weights, weightsAr,
+    });
+  }
+
+  return {
+    version: 1,
+    type: 'namliah-recipe-export',
+    exportedAt: new Date().toISOString(),
+    recipe: {
+      titleEn: (d.titleEn || '').trim(),
+      titleAr: (d.titleAr || '').trim(),
+      steps: recipeSteps,
+    },
+  };
+}
+
+function buildExportPayload() {
+  state.titleAr = document.getElementById('titleAr').value;
+  state.titleEn = document.getElementById('titleEn').value;
+
+  document.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
+  let invalid = false;
+  if (!state.titleAr.trim()){ document.getElementById('titleAr').classList.add('invalid'); invalid = true; }
+  if (!state.titleEn.trim()){ document.getElementById('titleEn').classList.add('invalid'); invalid = true; }
+  if (invalid){
+    toast(getLang()==='ar' ? 'العنوان بالعربي والإنجليزي مطلوبان' : 'Both Arabic and English titles are required', 'error');
+    document.getElementById('titleAr').scrollIntoView({behavior:'smooth', block:'center'});
+    return null;
+  }
+  if (!state.steps.length && !state.utensils.length) {
+    toast(getLang()==='ar' ? 'أضف خطوة أو أداة على الأقل' : 'Add at least one step or utensil', 'error');
+    return null;
+  }
+  return buildExportPayloadForDraft(state);
+}
+
+function slugify(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'recipe';
+}
+
+function exportRecipe() {
+  const payload = buildExportPayload();
+  if (!payload) return;
+  const json = JSON.stringify(payload, null, 2);
+  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const filename = `recipe-${slugify(payload.recipe.titleEn)}-${ts}.json`;
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+  const sizeKb = Math.round(json.length / 1024);
+  toast((getLang()==='ar' ? 'تم التصدير ✓ ' : 'Exported ✓ ') + `(${sizeKb}KB)`, 'success');
+
+  // Offer to delete from cloud after a short delay (let toast show first)
+  setTimeout(() => showArchiveModal([state.id]), 600);
+}
+
+async function copyExportJson() {
+  const payload = buildExportPayload();
+  if (!payload) return;
+  const json = JSON.stringify(payload);
+  try {
+    await navigator.clipboard.writeText(json);
+    toast(getLang()==='ar' ? 'تم النسخ للحافظة ✓' : 'Copied to clipboard ✓', 'success');
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = json;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); toast(getLang()==='ar' ? 'تم النسخ ✓' : 'Copied ✓', 'success'); }
+    catch (_) { toast(getLang()==='ar' ? 'فشل النسخ' : 'Copy failed', 'error'); }
+    document.body.removeChild(ta);
+  }
+}
+
+// =========================================================================
+// Bulk export (multiple drafts)
+// =========================================================================
+
+function getSelectedDrafts() {
+  const drafts = [];
+  for (const id of selectedIds) {
+    const d = allDrafts.drafts[id];
+    if (!d) continue;
+    // Skip drafts with no content
+    if (!d.titleAr && !d.titleEn && !(d.steps||[]).length && !(d.utensils||[]).length) continue;
+    drafts.push(d);
+  }
+  return drafts;
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+}
+
+function exportSelectedAsJson() {
+  const drafts = getSelectedDrafts();
+  const lang = getLang();
+  if (!drafts.length) {
+    toast(lang==='ar' ? 'حدّد وصفة واحدة على الأقل' : 'Select at least one draft', 'error');
+    return;
+  }
+
+  // Skip drafts missing required titles, but warn
+  const valid = [];
+  const skipped = [];
+  for (const d of drafts) {
+    if (!d.titleAr.trim() || !d.titleEn.trim()) {
+      skipped.push(d.titleAr || d.titleEn || '(بدون عنوان)');
+      continue;
+    }
+    valid.push(d);
+  }
+
+  if (!valid.length) {
+    toast(lang==='ar' ? 'كل الوصفات بدون عنوان كامل' : 'All drafts missing titles', 'error');
+    return;
+  }
+
+  const payload = {
+    version: 1,
+    type: 'namliah-recipe-export-bundle',
+    exportedAt: new Date().toISOString(),
+    count: valid.length,
+    recipes: valid.map(d => buildExportPayloadForDraft(d).recipe),
+  };
+
+  const json = JSON.stringify(payload, null, 2);
+  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const filename = `recipes-bundle-${valid.length}-${ts}.json`;
+  const blob = new Blob([json], { type: 'application/json' });
+  downloadBlob(blob, filename);
+
+  const sizeKb = Math.round(json.length / 1024);
+  let msg = (lang==='ar' ? `تم تصدير ${valid.length} وصفة ✓ ` : `Exported ${valid.length} recipes ✓ `) + `(${sizeKb}KB)`;
+  if (skipped.length) msg += lang==='ar' ? ` — تم تخطي ${skipped.length}` : ` — skipped ${skipped.length}`;
+  toast(msg, 'success');
+
+  // Offer cloud deletion for the successfully exported drafts
+  closeDrawer();
+  setTimeout(() => showArchiveModal(valid.map(d => d.id)), 600);
+}
+
+async function exportSelectedAsZip() {
+  const drafts = getSelectedDrafts();
+  const lang = getLang();
+  if (!drafts.length) {
+    toast(lang==='ar' ? 'حدّد وصفة واحدة على الأقل' : 'Select at least one draft', 'error');
+    return;
+  }
+
+  if (typeof JSZip === 'undefined') {
+    toast(lang==='ar' ? 'مكتبة ZIP غير محمّلة — تحقق من الاتصال' : 'JSZip not loaded — check connection', 'error');
+    return;
+  }
+
+  toast(lang==='ar' ? `جاري تجهيز ${drafts.length} وصفة…` : `Preparing ${drafts.length} recipes…`);
+
+  const zip = new JSZip();
+  const valid = [];
+  const skipped = [];
+  const usedNames = new Set();
+
+  for (const d of drafts) {
+    if (!d.titleAr.trim() || !d.titleEn.trim()) {
+      skipped.push(d.titleAr || d.titleEn || '(untitled)');
+      continue;
+    }
+    const payload = buildExportPayloadForDraft(d);
+    const json = JSON.stringify(payload, null, 2);
+    let baseName = `recipe-${slugify(payload.recipe.titleEn)}`;
+    let name = baseName + '.json';
+    let n = 2;
+    while (usedNames.has(name)) {
+      name = `${baseName}-${n}.json`;
+      n++;
+    }
+    usedNames.add(name);
+    zip.file(name, json);
+    valid.push(d);
+  }
+
+  if (!valid.length) {
+    toast(lang==='ar' ? 'كل الوصفات بدون عنوان كامل' : 'All drafts missing titles', 'error');
+    return;
+  }
+
+  // Add a manifest
+  const manifest = {
+    version: 1,
+    type: 'namliah-recipes-zip',
+    exportedAt: new Date().toISOString(),
+    count: valid.length,
+    recipes: valid.map(d => ({
+      titleAr: d.titleAr,
+      titleEn: d.titleEn,
+      stepCount: (d.steps||[]).length,
+      utensilCount: (d.utensils||[]).length,
+      photoCount: (d.steps||[]).reduce((a,s)=>a+(s.images||[]).length,0)
+                + (d.utensils||[]).filter(u=>u.img).length,
+    })),
+  };
+  zip.file('_manifest.json', JSON.stringify(manifest, null, 2));
+
+  try {
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `namliah-recipes-${valid.length}-${ts}.zip`;
+    downloadBlob(blob, filename);
+    const sizeKb = Math.round(blob.size / 1024);
+    let msg = (lang==='ar' ? `تم تصدير ${valid.length} وصفة ✓ ` : `Exported ${valid.length} recipes ✓ `) + `(${sizeKb}KB)`;
+    if (skipped.length) msg += lang==='ar' ? ` — تم تخطي ${skipped.length}` : ` — skipped ${skipped.length}`;
+    toast(msg, 'success');
+
+    // Offer cloud deletion for the successfully exported drafts
+    closeDrawer();
+    setTimeout(() => showArchiveModal(valid.map(d => d.id)), 600);
+  } catch (e) {
+    console.error('zip failed', e);
+    toast(lang==='ar' ? 'فشل إنشاء ZIP' : 'ZIP creation failed', 'error');
+  }
+}
+
+// =========================================================================
+// In-app burst camera
+// =========================================================================
+
+const _cam = {
+  active: false,
+  stream: null,
+  facingMode: 'environment',
+  targetStepIdx: -1,
+  thumbs: [],          // [{id, url, status: 'uploading'|'done'|'failed', imgRef?}]
+  busy: false,
+  videoEl: null,
+  hasMultipleCameras: false,
+};
+
+async function openCamera(stepIdx) {
+  if (_cam.active) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    toast(getLang()==='ar'
+      ? 'كاميرا المتصفح غير مدعومة على هذا الجهاز'
+      : 'Camera not supported on this device', 'error');
+    return;
+  }
+
+  _cam.active = true;
+  _cam.targetStepIdx = stepIdx;
+  _cam.thumbs = [];
+  _cam.busy = false;
+  _cam.facingMode = 'environment';
+
+  document.getElementById('cam-count').textContent = '0';
+  document.getElementById('cam-thumbs').innerHTML = '';
+  document.getElementById('cam-loading').style.display = 'flex';
+  document.getElementById('cam-loading-msg').innerHTML = getLang()==='ar'
+    ? '<span class="ar-only">جاري فتح الكاميرا…</span>'
+    : '<span class="en-only">Starting camera…</span>';
+
+  const lang = getLang();
+  const stepNum = stepIdx + 1;
+  const titleEl = document.getElementById('cam-title');
+  const stepHeading = state.steps[stepIdx] && (state.steps[stepIdx].headingAr || state.steps[stepIdx].headingEn);
+  titleEl.textContent = stepHeading
+    ? (lang==='ar' ? `خطوة ${stepNum} · ${stepHeading}` : `Step ${stepNum} · ${stepHeading}`)
+    : (lang==='ar' ? `خطوة ${stepNum}` : `Step ${stepNum}`);
+
+  document.getElementById('camera').classList.add('open');
+
+  // Detect if device has multiple cameras
+  try {
+    if (navigator.mediaDevices.enumerateDevices) {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cams = devices.filter(d => d.kind === 'videoinput');
+      _cam.hasMultipleCameras = cams.length > 1;
+      document.getElementById('cam-switch-btn').style.display = _cam.hasMultipleCameras ? 'flex' : 'none';
+    }
+  } catch(_){}
+
+  await startCameraStream();
+}
+
+async function startCameraStream() {
+  // Stop any existing stream
+  if (_cam.stream) {
+    _cam.stream.getTracks().forEach(t => t.stop());
+    _cam.stream = null;
+  }
+
+  try {
+    _cam.stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: _cam.facingMode },
+        width: { ideal: 1920 },
+        height: { ideal: 1920 },
+      },
+      audio: false,
+    });
+  } catch (e) {
+    console.error('camera failed', e);
+    showCameraError(e);
+    return;
+  }
+
+  const video = document.getElementById('cam-video');
+  _cam.videoEl = video;
+  video.srcObject = _cam.stream;
+  // Mirror only the front camera
+  video.classList.toggle('mirror', _cam.facingMode === 'user');
+  try {
+    await video.play();
+  } catch(_){}
+
+  // Hide loading once video is ready
+  if (video.readyState >= 2) {
+    document.getElementById('cam-loading').style.display = 'none';
+  } else {
+    video.addEventListener('loadedmetadata', () => {
+      document.getElementById('cam-loading').style.display = 'none';
+    }, { once: true });
+  }
+}
+
+function showCameraError(err) {
+  const lang = getLang();
+  const loading = document.getElementById('cam-loading');
+  loading.style.display = 'flex';
+  let msg;
+  if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+    msg = lang==='ar'
+      ? 'تم رفض الإذن. اسمح للموقع بالوصول للكاميرا من إعدادات المتصفح.'
+      : 'Permission denied. Allow camera access in browser settings.';
+  } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+    msg = lang==='ar' ? 'لم يتم العثور على كاميرا.' : 'No camera found.';
+  } else if (err.name === 'NotReadableError') {
+    msg = lang==='ar' ? 'الكاميرا قيد الاستخدام من تطبيق آخر.' : 'Camera in use by another app.';
+  } else {
+    msg = (lang==='ar' ? 'تعذّر فتح الكاميرا: ' : 'Camera error: ') + (err.message || err.name);
+  }
+  loading.innerHTML = `
+    <div class="err-msg">⚠️<br>${msg}</div>
+    <div class="err-actions">
+      <button onclick="startCameraStream()">${lang==='ar'?'إعادة المحاولة':'Retry'}</button>
+      <button class="secondary" onclick="closeCamera()">${lang==='ar'?'إغلاق':'Close'}</button>
+    </div>
+  `;
+}
+
+async function switchCamera() {
+  if (!_cam.hasMultipleCameras) return;
+  _cam.facingMode = (_cam.facingMode === 'environment') ? 'user' : 'environment';
+  document.getElementById('cam-loading').style.display = 'flex';
+  document.getElementById('cam-loading').innerHTML = `<div class="spinner"></div>`;
+  await startCameraStream();
+}
+
+function flashCamera() {
+  const flash = document.getElementById('cam-flash');
+  flash.classList.add('fire');
+  setTimeout(() => flash.classList.remove('fire'), 100);
+}
+
+async function captureShot() {
+  if (_cam.busy || !_cam.videoEl || !_cam.stream) return;
+  _cam.busy = true;
+  document.getElementById('cam-shutter').disabled = true;
+
+  flashCamera();
+
+  // Vibrate if supported (haptic feedback)
+  try { navigator.vibrate && navigator.vibrate(15); } catch(_){}
+
+  let blob, thumbDataUrl;
+  try {
+    const result = await captureFrameFromVideo(_cam.videoEl);
+    blob = result.blob;
+    thumbDataUrl = result.thumbDataUrl;
+  } catch (e) {
+    console.error('capture failed', e);
+    toast(getLang()==='ar' ? 'فشل التقاط الصورة' : 'Capture failed', 'error');
+    _cam.busy = false;
+    document.getElementById('cam-shutter').disabled = false;
+    return;
+  }
+
+  // Add a thumbnail entry immediately
+  const thumb = {
+    id: 't-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+    url: thumbDataUrl,
+    status: 'uploading',
+    imgRef: null,
+  };
+  _cam.thumbs.push(thumb);
+  renderCamThumbs();
+
+  // Insert placeholder in the actual step.images so the count is accurate as we go
+  const si = _cam.targetStepIdx;
+  const placeholder = { url: thumbDataUrl, path: '', _pending: true, _thumbId: thumb.id };
+  state.steps[si].images.push(placeholder);
+  thumb.imgRef = placeholder;
+
+  // Re-enable shutter immediately so user can keep shooting
+  _cam.busy = false;
+  document.getElementById('cam-shutter').disabled = false;
+
+  // Upload in background — don't block next shot
+  uploadCameraShot(blob, thumb).catch(err => console.error('upload err', err));
+}
+
+function captureFrameFromVideo(video) {
+  return new Promise((resolve, reject) => {
+    try {
+      const vw = video.videoWidth || 1280;
+      const vh = video.videoHeight || 720;
+      // Resize to IMG_MAX_DIM keeping aspect
+      let width = vw, height = vh;
+      const max = Math.max(width, height);
+      if (max > IMG_MAX_DIM) {
+        const scale = IMG_MAX_DIM / max;
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      // If front-facing (mirrored video), un-mirror in saved file
+      if (_cam.facingMode === 'user') {
+        ctx.translate(width, 0);
+        ctx.scale(-1, 1);
+      }
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(video, 0, 0, width, height);
+
+      // Small thumbnail data URL for instant preview
+      const thumbCanvas = document.createElement('canvas');
+      const tw = 160, th = Math.round(160 * (height / width));
+      thumbCanvas.width = tw;
+      thumbCanvas.height = th;
+      thumbCanvas.getContext('2d').drawImage(canvas, 0, 0, tw, th);
+      const thumbDataUrl = thumbCanvas.toDataURL('image/jpeg', 0.6);
+
+      canvas.toBlob(blob => {
+        if (!blob) return reject(new Error('encode failed'));
+        resolve({ blob, thumbDataUrl });
+      }, 'image/jpeg', IMG_QUALITY);
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
+async function uploadCameraShot(blob, thumb) {
+  const si = _cam.targetStepIdx;
+  try {
+    if (cloudReady && isOnline) {
+      const { url, path } = await uploadImageToStorage(blob, state.id);
+      // Make sure the placeholder still exists in the step (user might have deleted it)
+      if (thumb.imgRef && state.steps[si] && state.steps[si].images.includes(thumb.imgRef)) {
+        thumb.imgRef.url = url;
+        thumb.imgRef.path = path;
+        delete thumb.imgRef._pending;
+        delete thumb.imgRef._thumbId;
+        thumb.status = 'done';
+      } else {
+        // Placeholder gone — orphaned upload, delete from storage to avoid waste
+        deleteImageFromStorage(path);
+        thumb.status = 'failed';
+      }
+    } else {
+      const dataUrl = await blobToDataUrl(blob);
+      if (thumb.imgRef && state.steps[si] && state.steps[si].images.includes(thumb.imgRef)) {
+        thumb.imgRef.url = dataUrl;
+        thumb.imgRef.path = '';
+        delete thumb.imgRef._pending;
+        delete thumb.imgRef._thumbId;
+        thumb.status = 'done';
+      } else {
+        thumb.status = 'failed';
+      }
+    }
+    scheduleSave();
+    if (_cam.active) renderCamThumbs();
+  } catch (e) {
+    console.error('upload failed', e);
+    thumb.status = 'failed';
+    if (thumb.imgRef && state.steps[si]) {
+      const idx = state.steps[si].images.indexOf(thumb.imgRef);
+      if (idx >= 0) state.steps[si].images.splice(idx, 1);
+      thumb.imgRef = null;
+    }
+    if (_cam.active) renderCamThumbs();
+    if (_cam.active) toast((getLang()==='ar' ? 'فشل رفع: ' : 'Upload failed: ') + (e.code || e.message || ''), 'error');
+  }
+}
+
+function renderCamThumbs() {
+  const el = document.getElementById('cam-thumbs');
+  document.getElementById('cam-count').textContent = _cam.thumbs.filter(t => t.status !== 'failed').length;
+  // Render last 8 to avoid overflow
+  const recent = _cam.thumbs.slice(-8);
+  el.innerHTML = recent.map((t, i) => {
+    const realIdx = _cam.thumbs.indexOf(t) + 1;
+    return `
+      <div class="camera-thumb">
+        <img src="${escAttr(t.url)}" alt="">
+        <span class="thumb-num">${realIdx}</span>
+        <div class="thumb-status ${t.status}"></div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function closeCamera() {
+  if (!_cam.active) return;
+  _cam.active = false;
+  if (_cam.stream) {
+    _cam.stream.getTracks().forEach(t => t.stop());
+    _cam.stream = null;
+  }
+  document.getElementById('camera').classList.remove('open');
+  // Reset video element
+  if (_cam.videoEl) {
+    _cam.videoEl.srcObject = null;
+    _cam.videoEl = null;
+  }
+
+  const successCount = _cam.thumbs.filter(t => t.status !== 'failed').length;
+  const pendingCount = _cam.thumbs.filter(t => t.status === 'uploading').length;
+  _cam.thumbs = [];
+
+  // Re-render the step to reflect the new images
+  renderSteps();
+
+  if (successCount > 0) {
+    let msg = getLang()==='ar'
+      ? `✓ التقطت ${successCount} صورة`
+      : `✓ Captured ${successCount}`;
+    if (pendingCount > 0) {
+      msg += getLang()==='ar' ? ` (${pendingCount} قيد الرفع)` : ` (${pendingCount} uploading)`;
+    }
+    toast(msg, 'success');
+  }
+}
+
+
+
+// Pending IDs to delete after user confirms in modal
+let _archiveQueue = { ids: [] };
+
+// Estimate photo bytes (compressed JPEGs ~250KB average; data URLs ≈ raw size)
+function estimateDraftPhotoBytes(d) {
+  let bytes = 0;
+  let count = 0;
+  const ESTIMATE_PER_PHOTO = 250 * 1024; // 250KB
+  for (const u of (d.utensils || [])) {
+    if (!u.img) continue;
+    count++;
+    if (u.img.startsWith('data:')) {
+      bytes += Math.round(u.img.length * 0.75); // base64 → bytes
+    } else {
+      bytes += ESTIMATE_PER_PHOTO;
+    }
+  }
+  for (const s of (d.steps || [])) {
+    for (const im of (s.images || [])) {
+      const url = typeof im === 'string' ? im : (im && im.url) || '';
+      if (!url) continue;
+      count++;
+      if (url.startsWith('data:')) {
+        bytes += Math.round(url.length * 0.75);
+      } else {
+        bytes += ESTIMATE_PER_PHOTO;
+      }
+    }
+  }
+  return { count, bytes };
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + 'B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + 'KB';
+  return (bytes / 1024 / 1024).toFixed(1) + 'MB';
+}
+
+function showArchiveModal(draftIds) {
+  // Filter to actual existing drafts
+  const ids = draftIds.filter(id => allDrafts.drafts[id]);
+  if (!ids.length) return;
+
+  let totalPhotos = 0;
+  let totalBytes = 0;
+  for (const id of ids) {
+    const d = allDrafts.drafts[id];
+    const est = estimateDraftPhotoBytes(d);
+    totalPhotos += est.count;
+    totalBytes += est.bytes;
+  }
+
+  _archiveQueue.ids = ids;
+
+  document.getElementById('archive-stat-recipes').textContent = ids.length;
+  document.getElementById('archive-stat-photos').textContent = totalPhotos;
+  document.getElementById('archive-stat-size').textContent = formatBytes(totalBytes);
+
+  // Reset UI state
+  document.getElementById('archive-body').style.display = '';
+  document.getElementById('archive-actions').style.display = '';
+  document.getElementById('archive-deleting').classList.remove('show');
+  document.getElementById('archive-delete-btn').disabled = false;
+
+  document.getElementById('archive-modal').classList.add('open');
+}
+
+function closeArchiveModal() {
+  document.getElementById('archive-modal').classList.remove('open');
+  _archiveQueue.ids = [];
+}
+
+async function confirmArchiveDelete() {
+  const ids = _archiveQueue.ids.slice();
+  if (!ids.length) {
+    closeArchiveModal();
+    return;
+  }
+
+  // Show progress, hide actions
+  document.getElementById('archive-body').style.display = 'none';
+  document.getElementById('archive-actions').style.display = 'none';
+  document.getElementById('archive-deleting').classList.add('show');
+
+  let cloudDeleteCount = 0;
+  let cloudDeleteFailed = 0;
+
+  for (const id of ids) {
+    const d = allDrafts.drafts[id];
+    if (!d) continue;
+
+    // Collect storage paths
+    const paths = [];
+    for (const u of (d.utensils || [])) if (u.imgPath) paths.push(u.imgPath);
+    for (const s of (d.steps || [])) {
+      for (const im of (s.images || [])) {
+        if (im && im.path) paths.push(im.path);
+      }
+    }
+
+    // Delete photos from Storage in parallel
+    const results = await Promise.allSettled(paths.map(p => deleteImageFromStorage(p)));
+    for (const r of results) {
+      if (r.status === 'fulfilled') cloudDeleteCount++;
+      else cloudDeleteFailed++;
+    }
+
+    // Remove draft from local state
+    delete allDrafts.drafts[id];
+  }
+
+  // If we deleted the active draft, switch to another or create fresh
+  if (!allDrafts.drafts[allDrafts.activeId]) {
+    const remaining = Object.keys(allDrafts.drafts);
+    if (remaining.length) {
+      allDrafts.activeId = remaining.sort((a, b) =>
+        (allDrafts.drafts[b].updatedAt || '').localeCompare(allDrafts.drafts[a].updatedAt || '')
+      )[0];
+      state = allDrafts.drafts[allDrafts.activeId];
+    } else {
+      const fresh = newDraft();
+      allDrafts.drafts[fresh.id] = fresh;
+      allDrafts.activeId = fresh.id;
+      state = fresh;
+    }
+  }
+
+  saveLocal();
+  // Push to cloud immediately so Firestore reflects deletion
+  lastCloudHash = '';
+  if (cloudReady && isOnline) {
+    await saveToCloud();
+  }
+  renderAll();
+  renderDrawer();
+
+  closeArchiveModal();
+
+  const lang = getLang();
+  let msg = lang==='ar'
+    ? `تم حذف ${ids.length} وصفة (${cloudDeleteCount} صورة) ✓`
+    : `Deleted ${ids.length} recipe(s) — ${cloudDeleteCount} photos ✓`;
+  if (cloudDeleteFailed > 0) {
+    msg += lang==='ar' ? ` — فشل ${cloudDeleteFailed}` : ` — ${cloudDeleteFailed} failed`;
+  }
+  toast(msg, 'success');
+}
+
+
+
+function renderAll() {
+  document.getElementById('titleAr').value = state.titleAr || '';
+  document.getElementById('titleEn').value = state.titleEn || '';
+  renderUtensils();
+  renderSteps();
+  updateActiveTitle();
+}
+
+function setBootMsg(ar, en) {
+  document.getElementById('boot-msg').textContent = getLang()==='ar' ? ar : en;
+}
+
+function hideBoot() {
+  const b = document.getElementById('boot');
+  b.classList.add('hide');
+  setTimeout(() => b.remove(), 400);
+  bootDone = true;
+  updateSyncStatus();
+}
+
+function waitForFirebase(timeoutMs) {
+  return new Promise(resolve => {
+    if (window.fb) return resolve(window.fb);
+    let done = false;
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      resolve(window.fb || { ready: false, error: 'timeout' });
+    }, timeoutMs);
+    window.addEventListener('firebase-ready', () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      resolve(window.fb);
+    }, { once: true });
+  });
+}
+
+async function boot() {
+  // Lang
+  let savedLang = 'ar';
+  try { savedLang = localStorage.getItem(LS_LANG) || 'ar'; } catch(_){}
+  setLang(savedLang);
+
+  userId = getUserId();
+  document.getElementById('sync-uid').textContent = userId.slice(0, 12) + '…';
+
+  // Always load local first — instant UI
+  setBootMsg('جاري التحميل المحلي…', 'Loading local…');
+  loadAllDraftsLocal();
+  if (!allDrafts.drafts[allDrafts.activeId]){
+    const fresh = newDraft();
+    allDrafts.drafts[fresh.id] = fresh;
+    allDrafts.activeId = fresh.id;
+    state = fresh;
+  }
+  lastCloudHash = JSON.stringify(allDrafts);
+  renderAll();
+
+  // Wait for Firebase (with timeout)
+  setBootMsg('جاري الاتصال بالسحابة…', 'Connecting to cloud…');
+  const fb = await waitForFirebase(8000);
+  cloudReady = !!(fb && fb.ready);
+
+  if (cloudReady && isOnline) {
+    setBootMsg('جاري تحميل من السحابة…', 'Loading from cloud…');
+    const loaded = await loadFromCloud();
+    if (loaded) {
+      renderAll();
+      toast(getLang()==='ar' ? 'تم التحميل من السحابة ✓' : 'Loaded from cloud ✓', 'success');
+    }
+  } else if (!cloudReady) {
+    console.warn('Firebase not ready:', fb && fb.error);
+  }
+
+  hideBoot();
+
+  // Save current state (sets baseline; pushes to cloud if cloud ready)
+  saveLocal();
+  if (cloudReady && isOnline) {
+    // Mark this as the last hash so we don't immediately push if cloud was newer
+    // Otherwise push our merged state
+    const current = JSON.stringify(allDrafts);
+    if (current !== lastCloudHash) scheduleCloudSave();
+  }
+
+  document.getElementById('save-hint').textContent = '';
+  window.addEventListener('beforeunload', () => {
+    saveLocal();
+    // best-effort — fire and forget
+    if (cloudReady && isOnline) saveToCloud();
+  });
+}
+
+// Expose to window for inline handlers
+window.onChange = onChange;
+window.openDrawer = openDrawer;
+window.closeDrawer = closeDrawer;
+window.newDraftFromDrawer = newDraftFromDrawer;
+window.switchToDraft = switchToDraft;
+window.deleteDraft = deleteDraft;
+window.toggleLang = toggleLang;
+window.copyUserId = copyUserId;
+window.addUtensil = addUtensil;
+window.delUtensil = delUtensil;
+window.setUtensilField = setUtensilField;
+window.clearUtensilImage = clearUtensilImage;
+window.onUtensilImagePick = onUtensilImagePick;
+window.addStep = addStep;
+window.delStep = delStep;
+window.duplicateStep = duplicateStep;
+window.setStepField = setStepField;
+window.moveStep = moveStep;
+window.toggleStepCollapse = toggleStepCollapse;
+window.addItem = addItem;
+window.delItem = delItem;
+window.setItemField = setItemField;
+window.onItemKeydown = onItemKeydown;
+window.onStepPhotosPick = onStepPhotosPick;
+window.delPhoto = delPhoto;
+window.movePhoto = movePhoto;
+window.toggleWeights = toggleWeights;
+window.addWeightRow = addWeightRow;
+window.delWeightRow = delWeightRow;
+window.setWeightField = setWeightField;
+window.openLightboxFor = openLightboxFor;
+window.lightboxNav = lightboxNav;
+window.closeLightbox = closeLightbox;
+window.exportRecipe = exportRecipe;
+window.copyExportJson = copyExportJson;
+window.toggleSelectMode = toggleSelectMode;
+window.selectAllDrafts = selectAllDrafts;
+window.onDraftRowClick = onDraftRowClick;
+window.exportSelectedAsJson = exportSelectedAsJson;
+window.exportSelectedAsZip = exportSelectedAsZip;
+window.closeArchiveModal = closeArchiveModal;
+window.confirmArchiveDelete = confirmArchiveDelete;
+window.openCamera = openCamera;
+window.closeCamera = closeCamera;
+window.switchCamera = switchCamera;
+window.captureShot = captureShot;
+window.startCameraStream = startCameraStream;
+
+boot();
+</script>
+
+</body>
+</html>
